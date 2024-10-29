@@ -1,0 +1,4 @@
+[submodule "proto"]
+	path = proto
+	url = git@github.com:Squad-Maker/squad-maker-api.git
+	branch = main
