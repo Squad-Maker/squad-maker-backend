@@ -34,7 +34,7 @@ gen-proto:
 	mkdir generated
 	protoc -Iproto/api -Iproto/third_party --go_out=paths=source_relative:generated --go-grpc_out=paths=source_relative:generated --go-db-enum_out=paths=source_relative:generated proto/api/**/*.proto
 
-build-win:	
+build-win:
 	GOOS=windows GOARCH=amd64 go build -o bin/backend.exe cmd/main.go
 
 build-win-debug:
