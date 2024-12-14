@@ -11,5 +11,5 @@ type User struct {
 	Type           pbAuth.UserType `gorm:"not null;type:integer"`
 	Name           string          `gorm:"not null"`
 	Email          string          `gorm:"not null;index"`
-	HadFirstUpdate bool            `gorm:"not null;default:false"`
+	HadFirstUpdate bool            `gorm:"not null;default:false"` // utilizado pra indicar se deve exibir a página de atualização dos dados de cadastro do usuário
 }
