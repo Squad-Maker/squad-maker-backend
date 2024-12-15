@@ -15,8 +15,10 @@ type ProfileType string
 type ProfileTypes []ProfileType
 
 const (
-	API_URL             = "https://coensapp.dv.utfpr.edu.br/siacoes/service"
-	ProfileType_Student = "STUDENT"
+	API_URL                       = "https://coensapp.dv.utfpr.edu.br/siacoes/service"
+	ProfileType_Student           = "STUDENT"
+	ProfileType_Professor         = "PROFESSOR"
+	ProfileType_CompanySupervisor = "COMPANYSUPERVISOR" // não utilizado, mas pode retornar na API
 )
 
 var (

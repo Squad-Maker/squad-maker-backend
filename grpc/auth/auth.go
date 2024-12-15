@@ -200,14 +200,13 @@ func (s *AuthServiceServer) verifyCredentials(ctx context.Context, dbCon *gorm.D
 	if r.Error != nil {
 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
 			// cria o usuário
-			// TODO verificar qual é a string de professor e inverter esse if
-			// deixar aluno como padrão
-			// ou até mesmo, verificar os dois e retornar erro caso não tenha nenhum
 			var t pb.UserType
 			if profile.ProfileTypes.Contains(utfpr.ProfileType_Student) {
 				t = pb.UserType_utStudent
-			} else {
+			} else if profile.ProfileTypes.Contains(utfpr.ProfileType_Professor) {
 				t = pb.UserType_utProfessor
+			} else {
+				return nil, status.Error(codes.FailedPrecondition, "user is not a student or a professor")
 			}
 
 			user = &models.User{
