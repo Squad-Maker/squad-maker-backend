@@ -66,32 +66,33 @@ func (s *SquadServiceServer) GenerateTeam(ctx context.Context, req *pbSquad.Gene
 		// verificar aqui
 
 		project := &models.Project{}
-		if req.ProjectId != nil {
-			r := tx.
-				Preload("Positions").
-				Preload("Positions.Position").
-				Preload("Students").
-				Preload("Students.Student").
-				First(project, *req.ProjectId)
-			if r.Error != nil {
-				if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-					return status.Error(codes.NotFound, "project not found")
-				}
-				return status.Error(codes.Internal, r.Error.Error())
-			}
-		} else {
-			project = &models.Project{
-				SubjectId: req.SubjectId,
-				Name:      "Novo time/projeto",
-			}
-			r := tx.Create(project)
-			if r.Error != nil {
-				return status.Error(codes.Internal, r.Error.Error())
-			}
+		// TODO mudou o proto; refazer
+		// if req.ProjectId != nil {
+		// 	r := tx.
+		// 		Preload("Positions").
+		// 		Preload("Positions.Position").
+		// 		Preload("Students").
+		// 		Preload("Students.Student").
+		// 		First(project, *req.ProjectId)
+		// 	if r.Error != nil {
+		// 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
+		// 			return status.Error(codes.NotFound, "project not found")
+		// 		}
+		// 		return status.Error(codes.Internal, r.Error.Error())
+		// 	}
+		// } else {
+		// 	project = &models.Project{
+		// 		SubjectId: req.SubjectId,
+		// 		Name:      "Novo time/projeto",
+		// 	}
+		// 	r := tx.Create(project)
+		// 	if r.Error != nil {
+		// 		return status.Error(codes.Internal, r.Error.Error())
+		// 	}
 
-			// TODO se cair aqui, vai ter o override sempre preenchido
-			// salvar como config do projeto e carregar do banco pra repassar depois pra função de geração
-		}
+		// 	// TODO se cair aqui, vai ter o override sempre preenchido
+		// 	// salvar como config do projeto e carregar do banco pra repassar depois pra função de geração
+		// }
 		projectId = project.Id
 
 		mapNewStudents, err := generateProjectTeam(subject, project)
