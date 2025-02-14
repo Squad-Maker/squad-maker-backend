@@ -71,3 +71,21 @@ func GetCurrentUserTypeFromMetadata(ctx context.Context) pbAuth.UserType {
 
 	return pbAuth.UserType(v)
 }
+
+func GetCurrentSubjectIdFromMetadata(ctx context.Context) int64 {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return 0
+	}
+
+	ids := md["subject-id"]
+	if len(ids) == 0 {
+		return 1 // TODO tá fixo 1 só por enquanto
+	}
+
+	id, _ := strconv.ParseInt(ids[len(ids)-1], 10, 64)
+	if id == 0 {
+		return 1 // TODO tá fixo 1 só por enquantos
+	}
+	return id
+}

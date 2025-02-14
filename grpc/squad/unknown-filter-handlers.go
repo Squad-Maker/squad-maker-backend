@@ -17,3 +17,8 @@ func positionHandleUnknownFilters(tx *gorm.DB, filter *pbCommon.FilterData) (*go
 	fmt.Printf("positionHandleUnknownFilters received filter: %+v\n", filter)
 	return tx, nil, nil
 }
+
+func projectHandleUnknownFilters(tx *gorm.DB, filter *pbCommon.FilterData) (*gorm.DB, clause.Expression, error) {
+	fmt.Printf("projectHandleUnknownFilters received filter: %+v\n", filter)
+	return tx, nil, nil
+}

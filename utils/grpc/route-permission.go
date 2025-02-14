@@ -10,6 +10,27 @@ import (
 var (
 	mapRoutesToUserType = map[string][]pbAuth.UserType{
 		"/auth.AuthService/Me": {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+
+		"/squad.SquadService/ReadCompetenceLevel":     {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+		"/squad.SquadService/CreateCompetenceLevel":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/UpdateCompetenceLevel":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/DeleteCompetenceLevel":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/ReadAllCompetenceLevels": {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+
+		"/squad.SquadService/ReadPosition":     {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+		"/squad.SquadService/CreatePosition":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/UpdatePosition":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/DeletePosition":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/ReadAllPositions": {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+
+		"/squad.SquadService/ReadProject":     {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+		"/squad.SquadService/CreateProject":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/UpdateProject":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/DeleteProject":   {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/ReadAllProjects": {pbAuth.UserType_utProfessor, pbAuth.UserType_utStudent},
+
+		"/squad.SquadService/GetStudentSubjectData":    {pbAuth.UserType_utStudent},
+		"/squad.SquadService/UpdateStudentSubjectData": {pbAuth.UserType_utStudent},
 	}
 
 	mapIgnorePermissions = map[string]struct{}{
