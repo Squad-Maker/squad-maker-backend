@@ -11,7 +11,9 @@ import (
 	"os/signal"
 	"squad-maker/database"
 	pbAuth "squad-maker/generated/auth"
+	pbSquad "squad-maker/generated/squad"
 	"squad-maker/grpc/auth"
+	"squad-maker/grpc/squad"
 	"squad-maker/migrations"
 	"squad-maker/models"
 	grpcUtils "squad-maker/utils/grpc"
@@ -136,9 +138,11 @@ func authorize(ctx context.Context, methodFullName string) (context.Context, err
 func main() {
 	ctx := context.Background()
 	authService := auth.NewAuthServiceServer()
+	squadService := squad.NewSquadServiceServer()
 	s := grpc.NewServer(grpc.UnaryInterceptor(authUnaryInterceptor))
 
 	pbAuth.RegisterAuthServiceServer(s, authService)
+	pbSquad.RegisterSquadServiceServer(s, squadService)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
