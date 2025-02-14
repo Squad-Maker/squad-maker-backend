@@ -19,7 +19,7 @@ func init() {
 }
 
 func (p *pingPlugin) Name() string {
-	return "zion:ping"
+	return "db:ping"
 }
 
 func (p *pingPlugin) Initialize(db *gorm.DB) error {
@@ -31,24 +31,24 @@ func (p *pingPlugin) Initialize(db *gorm.DB) error {
 	}
 
 	temp := db.Callback().Create()
-	temp.Match(transactionEnabled).Before("gorm:begin_transaction").Register("zion:ping", pingCallback)
-	temp.Match(transactionDisabled).Before("gorm:before_create").Register("zion:ping", pingCallback)
+	temp.Match(transactionEnabled).Before("gorm:begin_transaction").Register("db:ping", pingCallback)
+	temp.Match(transactionDisabled).Before("gorm:before_create").Register("db:ping", pingCallback)
 	temp = nil
 
-	db.Callback().Query().Before("gorm:query").Register("zion:ping", pingCallback)
+	db.Callback().Query().Before("gorm:query").Register("db:ping", pingCallback)
 
 	temp = db.Callback().Delete()
-	temp.Match(transactionEnabled).Before("gorm:begin_transaction").Register("zion:ping", pingCallback)
-	temp.Match(transactionDisabled).Before("gorm:before_delete").Register("zion:ping", pingCallback)
+	temp.Match(transactionEnabled).Before("gorm:begin_transaction").Register("db:ping", pingCallback)
+	temp.Match(transactionDisabled).Before("gorm:before_delete").Register("db:ping", pingCallback)
 	temp = nil
 
 	temp = db.Callback().Update()
-	temp.Match(transactionEnabled).Before("gorm:begin_transaction").Register("zion:ping", pingCallback)
-	temp.Match(transactionDisabled).Before("gorm:setup_reflect_value").Register("zion:ping", pingCallback)
+	temp.Match(transactionEnabled).Before("gorm:begin_transaction").Register("db:ping", pingCallback)
+	temp.Match(transactionDisabled).Before("gorm:setup_reflect_value").Register("db:ping", pingCallback)
 	temp = nil
 
-	db.Callback().Row().Before("gorm:row").Register("zion:ping", pingCallback)
-	db.Callback().Raw().Before("gorm:raw").Register("zion:ping", pingCallback)
+	db.Callback().Row().Before("gorm:row").Register("db:ping", pingCallback)
+	db.Callback().Raw().Before("gorm:raw").Register("db:ping", pingCallback)
 
 	return nil
 }
