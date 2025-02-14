@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"squad-maker/cmd/reflection"
 	"squad-maker/database"
 	pbAuth "squad-maker/generated/auth"
 	pbSquad "squad-maker/generated/squad"
@@ -143,6 +144,7 @@ func main() {
 
 	pbAuth.RegisterAuthServiceServer(s, authService)
 	pbSquad.RegisterSquadServiceServer(s, squadService)
+	reflection.MaybeEnableReflection(s)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
