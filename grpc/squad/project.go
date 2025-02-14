@@ -17,7 +17,7 @@ import (
 
 // TODO quando implementar ownership do subject, tem que validar em tudo
 
-func (s *SquadServiceServer) ReadCompetenceLevel(ctx context.Context, req *pbSquad.ReadCompetenceLevelRequest) (*pbSquad.CompetenceLevel, error) {
+func (s *SquadServiceServer) ReadProject(ctx context.Context, req *pbSquad.ReadProjectRequest) (*pbSquad.Project, error) {
 	if req.Id == 0 {
 		return nil, status.Error(codes.InvalidArgument, "id cannot be zero")
 	}
@@ -27,24 +27,24 @@ func (s *SquadServiceServer) ReadCompetenceLevel(ctx context.Context, req *pbSqu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	competenceLevel := &models.CompetenceLevel{}
-	r := dbCon.First(competenceLevel, req.Id)
+	project := &models.Project{}
+	r := dbCon.First(project, req.Id)
 	if r.Error != nil {
 		if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-			return nil, status.Error(codes.NotFound, "competence level not found")
+			return nil, status.Error(codes.NotFound, "project not found")
 		}
 		return nil, status.Error(codes.Internal, r.Error.Error())
 	}
 
-	pbCompetenceLevel, err := competenceLevel.ConvertToProtobufMessage(dbCon)
+	pbProject, err := project.ConvertToProtobufMessage(dbCon)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return pbCompetenceLevel, nil
+	return pbProject, nil
 }
 
-func (s *SquadServiceServer) CreateCompetenceLevel(ctx context.Context, req *pbSquad.CreateCompetenceLevelRequest) (*pbSquad.CreateCompetenceLevelResponse, error) {
+func (s *SquadServiceServer) CreateProject(ctx context.Context, req *pbSquad.CreateProjectRequest) (*pbSquad.CreateProjectResponse, error) {
 	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
 
 	if subjectId == 0 {
@@ -60,14 +60,29 @@ func (s *SquadServiceServer) CreateCompetenceLevel(ctx context.Context, req *pbS
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	competenceLevel := &models.CompetenceLevel{
-		SubjectId: subjectId,
-		Name:      req.Name,
+	project := &models.Project{
+		SubjectId:   subjectId,
+		Name:        req.Name,
+		Description: req.Description,
 	}
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
-		r := tx.Create(competenceLevel)
+		// TODO verificar se o user é dono do subject do project
+		r := tx.Create(project)
 		if r.Error != nil {
 			return status.Error(codes.Internal, r.Error.Error())
+		}
+
+		for _, position := range req.Positions {
+			ppo := &models.ProjectPosition{
+				ProjectId:  project.Id,
+				PositionId: position.Id,
+				Count:      position.Count,
+			}
+
+			r = tx.Create(ppo)
+			if r.Error != nil {
+				return status.Error(codes.Internal, r.Error.Error())
+			}
 		}
 
 		return nil
@@ -76,12 +91,12 @@ func (s *SquadServiceServer) CreateCompetenceLevel(ctx context.Context, req *pbS
 		return nil, err
 	}
 
-	return &pbSquad.CreateCompetenceLevelResponse{
-		Id: competenceLevel.Id,
+	return &pbSquad.CreateProjectResponse{
+		Id: project.Id,
 	}, nil
 }
 
-func (s *SquadServiceServer) UpdateCompetenceLevel(ctx context.Context, req *pbSquad.UpdateCompetenceLevelRequest) (*pbSquad.UpdateCompetenceLevelResponse, error) {
+func (s *SquadServiceServer) UpdateProject(ctx context.Context, req *pbSquad.UpdateProjectRequest) (*pbSquad.UpdateProjectResponse, error) {
 	if req.Id == 0 {
 		return nil, status.Error(codes.InvalidArgument, "id cannot be zero")
 	}
@@ -96,18 +111,46 @@ func (s *SquadServiceServer) UpdateCompetenceLevel(ctx context.Context, req *pbS
 	}
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
-		competenceLevel := &models.CompetenceLevel{}
-		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(competenceLevel, req.Id)
+		// TODO verificar se o user é dono do subject do project
+		project := &models.Project{}
+		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(project, req.Id)
 		if r.Error != nil {
 			if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-				return status.Error(codes.NotFound, "competence level not found")
+				return status.Error(codes.NotFound, "project not found")
 			}
 			return status.Error(codes.Internal, r.Error.Error())
 		}
 
-		competenceLevel.Name = req.Name
+		project.Name = req.Name
 
-		r = tx.Save(competenceLevel)
+		r = tx.Save(project)
+		if r.Error != nil {
+			return status.Error(codes.Internal, r.Error.Error())
+		}
+
+		var positionIds []int64
+		for _, position := range req.Positions {
+			ppo := &models.ProjectPosition{
+				ProjectId:  project.Id,
+				PositionId: position.Id,
+				Count:      position.Count,
+			}
+
+			r = tx.Save(ppo)
+			if r.Error != nil {
+				return status.Error(codes.Internal, r.Error.Error())
+			}
+
+			positionIds = append(positionIds, ppo.PositionId)
+		}
+
+		r = tx.Where(models.ProjectPosition{
+			ProjectId: project.Id,
+		}, "ProjectId")
+		if len(positionIds) > 0 {
+			r = r.Where("ppo_position_id NOT IN (?)", positionIds)
+		}
+		r = r.Delete(&models.ProjectPosition{})
 		if r.Error != nil {
 			return status.Error(codes.Internal, r.Error.Error())
 		}
@@ -118,10 +161,10 @@ func (s *SquadServiceServer) UpdateCompetenceLevel(ctx context.Context, req *pbS
 		return nil, err
 	}
 
-	return &pbSquad.UpdateCompetenceLevelResponse{}, nil
+	return &pbSquad.UpdateProjectResponse{}, nil
 }
 
-func (s *SquadServiceServer) DeleteCompetenceLevel(ctx context.Context, req *pbSquad.DeleteCompetenceLevelRequest) (*pbSquad.DeleteCompetenceLevelResponse, error) {
+func (s *SquadServiceServer) DeleteProject(ctx context.Context, req *pbSquad.DeleteProjectRequest) (*pbSquad.DeleteProjectResponse, error) {
 	if req.Id == 0 {
 		return nil, status.Error(codes.InvalidArgument, "id cannot be zero")
 	}
@@ -132,16 +175,17 @@ func (s *SquadServiceServer) DeleteCompetenceLevel(ctx context.Context, req *pbS
 	}
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
-		competenceLevel := &models.CompetenceLevel{}
-		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(competenceLevel, req.Id)
+		// TODO verificar se o user é dono do subject do project
+		project := &models.Project{}
+		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(project, req.Id)
 		if r.Error != nil {
 			if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-				return status.Error(codes.NotFound, "competence level not found")
+				return status.Error(codes.NotFound, "project not found")
 			}
 			return status.Error(codes.Internal, r.Error.Error())
 		}
 
-		r = tx.Delete(competenceLevel)
+		r = tx.Delete(project)
 		if r.Error != nil {
 			return status.Error(codes.Internal, r.Error.Error())
 		}
@@ -152,10 +196,10 @@ func (s *SquadServiceServer) DeleteCompetenceLevel(ctx context.Context, req *pbS
 		return nil, err
 	}
 
-	return &pbSquad.DeleteCompetenceLevelResponse{}, nil
+	return &pbSquad.DeleteProjectResponse{}, nil
 }
 
-func (s *SquadServiceServer) ReadAllCompetenceLevels(ctx context.Context, req *pbCommon.ReadAllRequest) (*pbSquad.ReadAllCompetenceLevelsResponse, error) {
+func (s *SquadServiceServer) ReadAllProjects(ctx context.Context, req *pbCommon.ReadAllRequest) (*pbSquad.ReadAllProjectsResponse, error) {
 	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
 
 	dbCon, err := database.GetConnectionWithContext(ctx)
@@ -181,10 +225,10 @@ func (s *SquadServiceServer) ReadAllCompetenceLevels(ctx context.Context, req *p
 		},
 	})
 
-	tx, err := database.PrepareWithFilters(dbCon, filters, models.CompetenceLevel{}, competenceLevelHandleUnknownFilters)
+	tx, err := database.PrepareWithFilters(dbCon, filters, models.Project{}, projectHandleUnknownFilters)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return database.GetPaginatedResult[pbSquad.CompetenceLevel, pbSquad.ReadAllCompetenceLevelsResponse](ctx, tx, req.Pagination, models.CompetenceLevel{}, competenceLevelHandleUnknownOrderByFields)
+	return database.GetPaginatedResult[pbSquad.Project, pbSquad.ReadAllProjectsResponse](ctx, tx, req.Pagination, models.Project{}, projectHandleUnknownOrderByFields)
 }

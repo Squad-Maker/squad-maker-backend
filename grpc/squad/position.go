@@ -7,11 +7,15 @@ import (
 	pbCommon "squad-maker/generated/common"
 	pbSquad "squad-maker/generated/squad"
 	"squad-maker/models"
+	grpcUtils "squad-maker/utils/grpc"
+	"strconv"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
 )
+
+// TODO quando implementar ownership do subject, tem que validar em tudo
 
 func (s *SquadServiceServer) ReadPosition(ctx context.Context, req *pbSquad.ReadPositionRequest) (*pbSquad.Position, error) {
 	if req.Id == 0 {
@@ -41,7 +45,9 @@ func (s *SquadServiceServer) ReadPosition(ctx context.Context, req *pbSquad.Read
 }
 
 func (s *SquadServiceServer) CreatePosition(ctx context.Context, req *pbSquad.CreatePositionRequest) (*pbSquad.CreatePositionResponse, error) {
-	if req.SubjectId == 0 {
+	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
+
+	if subjectId == 0 {
 		return nil, status.Error(codes.InvalidArgument, "subject id cannot be zero")
 	}
 
@@ -55,10 +61,11 @@ func (s *SquadServiceServer) CreatePosition(ctx context.Context, req *pbSquad.Cr
 	}
 
 	position := &models.Position{
-		SubjectId: req.SubjectId,
+		SubjectId: subjectId,
 		Name:      req.Name,
 	}
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
+		// TODO verificar se o user é dono do subject da position
 		r := tx.Create(position)
 		if r.Error != nil {
 			return status.Error(codes.Internal, r.Error.Error())
@@ -90,6 +97,7 @@ func (s *SquadServiceServer) UpdatePosition(ctx context.Context, req *pbSquad.Up
 	}
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
+		// TODO verificar se o user é dono do subject da position
 		position := &models.Position{}
 		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(position, req.Id)
 		if r.Error != nil {
@@ -126,6 +134,7 @@ func (s *SquadServiceServer) DeletePosition(ctx context.Context, req *pbSquad.De
 	}
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
+		// TODO verificar se o user é dono do subject da position
 		position := &models.Position{}
 		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(position, req.Id)
 		if r.Error != nil {
@@ -150,12 +159,32 @@ func (s *SquadServiceServer) DeletePosition(ctx context.Context, req *pbSquad.De
 }
 
 func (s *SquadServiceServer) ReadAllPositions(ctx context.Context, req *pbCommon.ReadAllRequest) (*pbSquad.ReadAllPositionsResponse, error) {
+	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
+
 	dbCon, err := database.GetConnectionWithContext(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	tx, err := database.PrepareWithFilters(dbCon, req.Filters, models.Position{}, positionHandleUnknownFilters)
+	var filters []*pbCommon.FilterData
+	if req.Filters != nil {
+		filters = append(filters, &pbCommon.FilterData{
+			Filter: &pbCommon.FilterData_Grouped{
+				Grouped: &pbCommon.GroupedFilterData{Filters: req.Filters},
+			},
+		})
+	}
+	filters = append(filters, &pbCommon.FilterData{
+		Filter: &pbCommon.FilterData_Simple{
+			Simple: &pbCommon.SimpleFilterData{
+				FilterKey: "subjectId",
+				Value:     strconv.FormatInt(subjectId, 10),
+				Operator:  pbCommon.FilterOperator_foEqual,
+			},
+		},
+	})
+
+	tx, err := database.PrepareWithFilters(dbCon, filters, models.Position{}, positionHandleUnknownFilters)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

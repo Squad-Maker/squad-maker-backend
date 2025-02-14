@@ -16,3 +16,8 @@ func positionHandleUnknownOrderByFields(tx *gorm.DB, sortOption *pbCommon.SortOp
 	fmt.Printf("positionHandleUnknownOrderByFields received order by: %+v\n", sortOption)
 	return tx, nil
 }
+
+func projectHandleUnknownOrderByFields(tx *gorm.DB, sortOption *pbCommon.SortOption) (*gorm.DB, error) {
+	fmt.Printf("projectHandleUnknownOrderByFields received order by: %+v\n", sortOption)
+	return tx, nil
+}
