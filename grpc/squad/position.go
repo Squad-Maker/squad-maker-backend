@@ -15,6 +15,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO quando implementar ownership do subject, tem que validar em tudo
+
 func (s *SquadServiceServer) ReadPosition(ctx context.Context, req *pbSquad.ReadPositionRequest) (*pbSquad.Position, error) {
 	if req.Id == 0 {
 		return nil, status.Error(codes.InvalidArgument, "id cannot be zero")
@@ -43,7 +45,9 @@ func (s *SquadServiceServer) ReadPosition(ctx context.Context, req *pbSquad.Read
 }
 
 func (s *SquadServiceServer) CreatePosition(ctx context.Context, req *pbSquad.CreatePositionRequest) (*pbSquad.CreatePositionResponse, error) {
-	if req.SubjectId == 0 {
+	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
+
+	if subjectId == 0 {
 		return nil, status.Error(codes.InvalidArgument, "subject id cannot be zero")
 	}
 
@@ -57,10 +61,11 @@ func (s *SquadServiceServer) CreatePosition(ctx context.Context, req *pbSquad.Cr
 	}
 
 	position := &models.Position{
-		SubjectId: req.SubjectId,
+		SubjectId: subjectId,
 		Name:      req.Name,
 	}
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
+		// TODO verificar se o user é dono do subject da position
 		r := tx.Create(position)
 		if r.Error != nil {
 			return status.Error(codes.Internal, r.Error.Error())
@@ -92,6 +97,7 @@ func (s *SquadServiceServer) UpdatePosition(ctx context.Context, req *pbSquad.Up
 	}
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
+		// TODO verificar se o user é dono do subject da position
 		position := &models.Position{}
 		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(position, req.Id)
 		if r.Error != nil {
@@ -128,6 +134,7 @@ func (s *SquadServiceServer) DeletePosition(ctx context.Context, req *pbSquad.De
 	}
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
+		// TODO verificar se o user é dono do subject da position
 		position := &models.Position{}
 		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(position, req.Id)
 		if r.Error != nil {

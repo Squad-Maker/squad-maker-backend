@@ -9,6 +9,7 @@ import (
 	"squad-maker/database"
 	pbSquad "squad-maker/generated/squad"
 	"squad-maker/models"
+	grpcUtils "squad-maker/utils/grpc"
 
 	"github.com/mroth/weightedrand/v2"
 	"google.golang.org/grpc/codes"
@@ -16,15 +17,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO quando implementar ownership do subject, tem que validar em tudo
+
 // GenerateTeam gera um time pertencente a um subject.
 //
 // Se não informar project id (para time pré-cadastrado), um novo project será criado.
 // Esta função somente gera um time/projeto por execução.
 func (s *SquadServiceServer) GenerateTeam(ctx context.Context, req *pbSquad.GenerateTeamRequest) (*pbSquad.GenerateTeamResponse, error) {
-	// req.SubjectId
+	// subjectId pega do metadata
 	// *req.ProjectId
 	// TODO req.OverrideConfigs (necessário quando não informar project id)
 	// TODO req.weights
+	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
 
 	dbCon, err := database.GetConnectionWithContext(ctx)
 	if err != nil {
@@ -53,7 +57,7 @@ func (s *SquadServiceServer) GenerateTeam(ctx context.Context, req *pbSquad.Gene
 		r := tx.
 			Preload("Students").
 			Preload("Students.Student").
-			First(subject, req.SubjectId)
+			First(subject, subjectId)
 		if r.Error != nil {
 			if errors.Is(r.Error, gorm.ErrRecordNotFound) {
 				return status.Error(codes.NotFound, "subject not found")

@@ -17,7 +17,6 @@ type CompetenceLevel struct {
 func (cl *CompetenceLevel) ConvertToProtobufMessage(tx *gorm.DB) (*pbSquad.CompetenceLevel, error) {
 	message := &pbSquad.CompetenceLevel{}
 	message.Id = cl.Id
-	message.SubjectId = cl.SubjectId
 	message.Name = cl.Name
 
 	return message, nil

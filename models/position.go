@@ -17,7 +17,6 @@ type Position struct {
 func (p *Position) ConvertToProtobufMessage(tx *gorm.DB) (*pbSquad.Position, error) {
 	message := &pbSquad.Position{}
 	message.Id = p.Id
-	message.SubjectId = p.SubjectId
 	message.Name = p.Name
 
 	return message, nil

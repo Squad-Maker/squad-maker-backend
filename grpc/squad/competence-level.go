@@ -15,6 +15,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO quando implementar ownership do subject, tem que validar em tudo
+
 func (s *SquadServiceServer) ReadCompetenceLevel(ctx context.Context, req *pbSquad.ReadCompetenceLevelRequest) (*pbSquad.CompetenceLevel, error) {
 	if req.Id == 0 {
 		return nil, status.Error(codes.InvalidArgument, "id cannot be zero")
@@ -43,7 +45,9 @@ func (s *SquadServiceServer) ReadCompetenceLevel(ctx context.Context, req *pbSqu
 }
 
 func (s *SquadServiceServer) CreateCompetenceLevel(ctx context.Context, req *pbSquad.CreateCompetenceLevelRequest) (*pbSquad.CreateCompetenceLevelResponse, error) {
-	if req.SubjectId == 0 {
+	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
+
+	if subjectId == 0 {
 		return nil, status.Error(codes.InvalidArgument, "subject id cannot be zero")
 	}
 
@@ -57,7 +61,7 @@ func (s *SquadServiceServer) CreateCompetenceLevel(ctx context.Context, req *pbS
 	}
 
 	competenceLevel := &models.CompetenceLevel{
-		SubjectId: req.SubjectId,
+		SubjectId: subjectId,
 		Name:      req.Name,
 	}
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
