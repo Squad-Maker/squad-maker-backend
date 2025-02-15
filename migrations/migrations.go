@@ -35,6 +35,13 @@ func RunMigrations(ctx context.Context) error {
 	err = dbCon.AutoMigrate(
 		&models.User{},
 		&models.Session{},
+		&models.Subject{},
+		&models.StudentSubjectData{},
+		&models.CompetenceLevel{},
+		&models.Position{},
+		&models.Project{},
+		&models.ProjectPosition{},
+		&models.ProjectStudent{},
 	)
 	if err != nil {
 		return err

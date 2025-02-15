@@ -14,6 +14,9 @@ type StudentSubjectData struct {
 	PositionOption2    *Position
 	PreferredProjectId *int64
 	PreferredProject   *Project
+	CompetenceLevelId  *int64
+	CompetenceLevel    *CompetenceLevel
+	HadFirstUpdate     bool `gorm:"not null;default:false"`
 }
 
 func (StudentSubjectData) TableName() string {

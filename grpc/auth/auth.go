@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"os"
 	"squad-maker/database"
 	pb "squad-maker/generated/auth"
 	"squad-maker/models"
@@ -180,6 +181,23 @@ func (s *AuthServiceServer) InvalidateToken(ctx context.Context, req *pb.Invalid
 }
 
 func (s *AuthServiceServer) verifyCredentials(ctx context.Context, dbCon *gorm.DB, username string, password string) (*models.User, error) {
+	professorUsername := os.Getenv("PROFESSOR_DUMMY_USERNAME")
+	professorPassword := os.Getenv("PROFESSOR_DUMMY_PASSWORD")
+	if professorUsername != "" && professorPassword != "" && username == professorUsername && password == professorPassword {
+		user := &models.User{}
+		r := dbCon.Where(models.User{
+			UtfprUsername: "dummy",
+		}, "UtfprUsername").First(user)
+		if r.Error != nil {
+			if errors.Is(r.Error, gorm.ErrRecordNotFound) {
+				return nil, status.Error(codes.NotFound, "user not found")
+			}
+			return nil, status.Error(codes.Internal, r.Error.Error())
+		}
+
+		return user, nil
+	}
+
 	// chama a API pra verificar as credenciais
 	profile, err := utfpr.GetProfileFromLogin(ctx, username, password)
 	if err != nil {
