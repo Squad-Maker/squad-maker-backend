@@ -7,7 +7,9 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/jinzhu/now v1.1.5
 	github.com/joho/godotenv v1.4.0
+	github.com/lib/pq v1.10.9
 	github.com/matthewhartstonge/argon2 v1.0.0
+	github.com/mroth/weightedrand/v2 v2.1.0
 	github.com/ottomillrath/goose/v2 v2.8.3
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
