@@ -75,7 +75,7 @@ func (s *SquadServiceServer) GetStudentSubjectData(ctx context.Context, req *pbS
 	return resp, nil
 }
 
-func (s *SquadServiceServer) UpadteStudentSubjectData(ctx context.Context, req *pbSquad.UpdateStudentSubjectDataRequest) (*pbSquad.UpdateStudentSubjectDataResponse, error) {
+func (s *SquadServiceServer) UpdateStudentSubjectData(ctx context.Context, req *pbSquad.UpdateStudentSubjectDataRequest) (*pbSquad.UpdateStudentSubjectDataResponse, error) {
 	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
 	studentId := grpcUtils.GetCurrentUserIdFromMetadata(ctx)
 
