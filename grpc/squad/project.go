@@ -16,6 +16,8 @@ import (
 )
 
 // TODO quando implementar ownership do subject, tem que validar em tudo
+// TODO quando implementar mais de um subject, tem que validar tudo pelo subject do contexto (vindo do metadata)
+// recomendação: utilizar Scopes do gorm (validar em todos os arquivos necessários, não só neste)
 
 func (s *SquadServiceServer) ReadProject(ctx context.Context, req *pbSquad.ReadProjectRequest) (*pbSquad.Project, error) {
 	if req.Id == 0 {
@@ -73,6 +75,10 @@ func (s *SquadServiceServer) CreateProject(ctx context.Context, req *pbSquad.Cre
 		}
 
 		for _, position := range req.Positions {
+			if position.Count <= 0 {
+				continue
+			}
+
 			ppo := &models.ProjectPosition{
 				ProjectId:  project.Id,
 				PositionId: position.Id,

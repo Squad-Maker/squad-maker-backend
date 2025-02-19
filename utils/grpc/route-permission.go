@@ -31,7 +31,11 @@ var (
 
 		"/squad.SquadService/GetStudentSubjectData":    {pbAuth.UserType_utStudent},
 		"/squad.SquadService/UpdateStudentSubjectData": {pbAuth.UserType_utStudent},
+		"/squad.SquadService/GenerateAllTeams":         {pbAuth.UserType_utProfessor},
 		"/squad.SquadService/GenerateTeam":             {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/AddStudentToTeam":         {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/RemoveStudentFromTeam":    {pbAuth.UserType_utProfessor},
+		"/squad.SquadService/RequestTeamRevaluation":   {pbAuth.UserType_utStudent},
 	}
 
 	mapIgnorePermissions = map[string]struct{}{

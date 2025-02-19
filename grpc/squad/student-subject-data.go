@@ -14,6 +14,7 @@ import (
 )
 
 func (s *SquadServiceServer) GetStudentSubjectData(ctx context.Context, req *pbSquad.GetStudentSubjectDataRequest) (*pbSquad.GetStudentSubjectDataResponse, error) {
+	studentId := grpcUtils.GetCurrentUserIdFromMetadata(ctx)
 	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
 
 	if subjectId == 0 {
@@ -36,7 +37,11 @@ func (s *SquadServiceServer) GetStudentSubjectData(ctx context.Context, req *pbS
 		Joins("PositionOption2").
 		Joins("PreferredProject").
 		Joins("CompetenceLevel").
-		First(studentSubjectData, subjectId)
+		Where(models.StudentSubjectData{
+			StudentId: studentId,
+			SubjectId: subjectId,
+		}, "StudentId", "SubjectId").
+		First(studentSubjectData)
 	if r.Error != nil && !errors.Is(r.Error, gorm.ErrRecordNotFound) {
 		return nil, status.Error(codes.Internal, r.Error.Error())
 	}
@@ -94,20 +99,27 @@ func (s *SquadServiceServer) UpdateStudentSubjectData(ctx context.Context, req *
 
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
 		studentSubjectData := &models.StudentSubjectData{}
-		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).First(studentSubjectData, subjectId)
+		r := tx.Clauses(database.GetLockForUpdateClause(tx.Dialector.Name(), false)).
+			Where(models.StudentSubjectData{
+				StudentId: studentId,
+				SubjectId: subjectId,
+			}, "StudentId", "SubjectId").
+			First(studentSubjectData)
 		if r.Error != nil {
 			if errors.Is(r.Error, gorm.ErrRecordNotFound) {
-				return status.Error(codes.NotFound, "student subject data not found")
+				studentSubjectData.StudentId = studentId
+				studentSubjectData.SubjectId = subjectId
+			} else {
+				return status.Error(codes.Internal, r.Error.Error())
 			}
-			return status.Error(codes.Internal, r.Error.Error())
 		}
 
 		studentSubjectData.HadFirstUpdate = true
 		studentSubjectData.Tools = req.Tools
-		studentSubjectData.CompetenceLevelId = &req.CompetenceLevelId
+		studentSubjectData.CompetenceLevelId = req.CompetenceLevelId
 		studentSubjectData.PositionOption1Id = req.PositionOption_1Id
-		studentSubjectData.PositionOption2Id = &req.PositionOption_2Id
-		studentSubjectData.PreferredProjectId = &req.PreferredProjectId
+		studentSubjectData.PositionOption2Id = req.PositionOption_2Id
+		studentSubjectData.PreferredProjectId = req.PreferredProjectId
 
 		r = tx.Save(studentSubjectData)
 		if r.Error != nil {

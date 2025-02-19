@@ -14,7 +14,7 @@ type StudentSubjectData struct {
 	PositionOption2    *Position
 	PreferredProjectId *int64
 	PreferredProject   *Project
-	CompetenceLevelId  *int64
+	CompetenceLevelId  int64 `gorm:"not null"`
 	CompetenceLevel    *CompetenceLevel
 	HadFirstUpdate     bool `gorm:"not null;default:false"`
 }
