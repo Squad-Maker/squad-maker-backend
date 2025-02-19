@@ -468,6 +468,7 @@ func (s *SquadServiceServer) RequestTeamRevaluation(ctx context.Context, req *pb
 			return status.Error(codes.Internal, r.Error.Error())
 		}
 
+		// TODO fazer com html template ou outra coisa que faça escape dos inputs pra não ter html injection
 		for _, professor := range professors {
 			body := fmt.Sprintf(`<p>Prezado(a) Professor(a) %s,</p>
 				<p>Informamos que o aluno <strong>%s</strong> fez uma solicitação de mudança de projeto na disciplina <strong>%s</strong>.</p>
