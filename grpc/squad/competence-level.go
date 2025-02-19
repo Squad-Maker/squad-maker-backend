@@ -63,6 +63,7 @@ func (s *SquadServiceServer) CreateCompetenceLevel(ctx context.Context, req *pbS
 	competenceLevel := &models.CompetenceLevel{
 		SubjectId: subjectId,
 		Name:      req.Name,
+		// Weight:    req.Weight,
 	}
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
 		r := tx.Create(competenceLevel)
@@ -106,6 +107,7 @@ func (s *SquadServiceServer) UpdateCompetenceLevel(ctx context.Context, req *pbS
 		}
 
 		competenceLevel.Name = req.Name
+		// competenceLevel.Weight = req.Weight
 
 		r = tx.Save(competenceLevel)
 		if r.Error != nil {

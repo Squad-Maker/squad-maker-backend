@@ -54,10 +54,26 @@ func (p *Project) ConvertToProtobufMessage(tx *gorm.DB) (*pbSquad.Project, error
 			Name:                student.Student.Name,
 			Email:               student.Student.Email,
 			CompetenceLevelId:   ssd.CompetenceLevelId,
-			CompetenceLevelName: otherUtils.IIf(ssd.CompetenceLevel != nil, &ssd.CompetenceLevel.Name, nil),
+			CompetenceLevelName: otherUtils.IIf(ssd.CompetenceLevel != nil, ssd.CompetenceLevel.Name, ""),
 			Tools:               ssd.Tools,
 			PositionId:          student.PositionId,
 			PositionName:        student.Position.Name,
+		})
+	}
+
+	var positions []*ProjectPosition
+	r = tx.InnerJoins("Position").Where(ProjectPosition{
+		ProjectId: p.Id,
+	}, "ProjectId").Find(&positions)
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
+	for _, position := range positions {
+		message.Positions = append(message.Positions, &pbSquad.Project_Position{
+			Id:    position.PositionId,
+			Name:  position.Position.Name,
+			Count: position.Count,
 		})
 	}
 

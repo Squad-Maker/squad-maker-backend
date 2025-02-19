@@ -19,14 +19,17 @@ func upAddDefaultCompetenceLevels(tx *gorm.DB) error {
 		{
 			SubjectId: 1,
 			Name:      "Júnior",
+			// Weight:    1,
 		},
 		{
 			SubjectId: 1,
 			Name:      "Pleno",
+			// Weight:    2,
 		},
 		{
 			SubjectId: 1,
 			Name:      "Sênior",
+			// Weight:    3,
 		},
 	}
 
