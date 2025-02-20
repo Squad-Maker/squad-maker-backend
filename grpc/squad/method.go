@@ -9,11 +9,13 @@ import (
 	"slices"
 	"squad-maker/database"
 	pbAuth "squad-maker/generated/auth"
+	pbCommon "squad-maker/generated/common"
 	pbSquad "squad-maker/generated/squad"
 	"squad-maker/models"
 	grpcUtils "squad-maker/utils/grpc"
 	mailUtils "squad-maker/utils/mail"
 	otherUtils "squad-maker/utils/other"
+	"strconv"
 	"strings"
 
 	"github.com/mroth/weightedrand/v2"
@@ -510,6 +512,40 @@ func (s *SquadServiceServer) RequestTeamRevaluation(ctx context.Context, req *pb
 	}
 
 	return &pbSquad.RequestTeamRevaluationResponse{}, nil
+}
+
+func (s *SquadServiceServer) ReadAllStudentsInSubject(ctx context.Context, req *pbCommon.ReadAllRequest) (*pbSquad.ReadAllStudentsInSubjectResponse, error) {
+	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
+
+	dbCon, err := database.GetConnectionWithContext(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	var filters []*pbCommon.FilterData
+	if req.Filters != nil {
+		filters = append(filters, &pbCommon.FilterData{
+			Filter: &pbCommon.FilterData_Grouped{
+				Grouped: &pbCommon.GroupedFilterData{Filters: req.Filters},
+			},
+		})
+	}
+	filters = append(filters, &pbCommon.FilterData{
+		Filter: &pbCommon.FilterData_Simple{
+			Simple: &pbCommon.SimpleFilterData{
+				FilterKey: "subjectId",
+				Value:     strconv.FormatInt(subjectId, 10),
+				Operator:  pbCommon.FilterOperator_foEqual,
+			},
+		},
+	})
+
+	tx, err := database.PrepareWithFilters(dbCon.InnerJoins("Student"), filters, models.StudentSubjectData{}, studentInSubjectHandleUnknownFilters)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return database.GetPaginatedResult[pbSquad.StudentInSubject, pbSquad.ReadAllStudentsInSubjectResponse](ctx, tx, req.Pagination, models.StudentSubjectData{}, studentInSubjectHandleUnknownOrderByFields)
 }
 
 // TODO mover isso pra uma interface
