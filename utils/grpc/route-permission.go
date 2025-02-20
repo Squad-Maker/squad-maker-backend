@@ -31,6 +31,7 @@ var (
 
 		"/squad.SquadService/GetStudentSubjectData":    {pbAuth.UserType_utStudent},
 		"/squad.SquadService/UpdateStudentSubjectData": {pbAuth.UserType_utStudent},
+		"/squad.SquadService/ReadAllStudentsInSubject": {pbAuth.UserType_utProfessor},
 		"/squad.SquadService/GenerateAllTeams":         {pbAuth.UserType_utProfessor},
 		"/squad.SquadService/GenerateTeam":             {pbAuth.UserType_utProfessor},
 		"/squad.SquadService/AddStudentToTeam":         {pbAuth.UserType_utProfessor},
