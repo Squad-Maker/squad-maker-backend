@@ -128,6 +128,7 @@ func (s *SquadServiceServer) UpdateProject(ctx context.Context, req *pbSquad.Upd
 		}
 
 		project.Name = req.Name
+		project.Description = req.Description
 
 		r = tx.Save(project)
 		if r.Error != nil {
@@ -136,6 +137,18 @@ func (s *SquadServiceServer) UpdateProject(ctx context.Context, req *pbSquad.Upd
 
 		var positionIds []int64
 		for _, position := range req.Positions {
+			if position.Count <= 0 {
+				// delete
+				r = tx.Where(models.ProjectPosition{
+					ProjectId:  project.Id,
+					PositionId: position.Id,
+				}, "ProjectId", "PositionId").Delete(&models.ProjectPosition{})
+				if r.Error != nil {
+					return status.Error(codes.Internal, r.Error.Error())
+				}
+				continue
+			}
+
 			ppo := &models.ProjectPosition{
 				ProjectId:  project.Id,
 				PositionId: position.Id,
