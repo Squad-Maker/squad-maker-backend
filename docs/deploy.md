@@ -56,7 +56,6 @@ server {
         proxy_set_header X-Forwarded-Host $server_name;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
-        #add_header       X-Upstream $upstream_addr;
         proxy_redirect     off;
         proxy_http_version 1.1;
         proxy_pass http://squad-back/;
