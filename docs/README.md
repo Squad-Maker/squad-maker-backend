@@ -6,3 +6,4 @@
 - [Fluxo de dados](fluxo.md).
 - [Testes de API](testes.md).
 - [Ideias não implementadas](unimplemented.md).
+- [Deployment recomendado](deploy.md).
