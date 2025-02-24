@@ -31,13 +31,25 @@ O dado mais importante de ser editado atualmente é o email, que é utilizado pa
 
 Existe um tipo `Admin` que não é utilizado. Este tipo de usuário não respeita validações de permissão e passa direto por tudo. Neste projeto, não utilizamos, mas vale a menção.
 
-## Organização do código de geração de times em uma interface
-
-O código de geração de times atualmente está todo fixo no arquivo `grpc/method.go`. A ideia seria criar uma interface com métodos a serem implementados que são chamados pela função do gRPC de geração de time, permitindo trocar qual implementação do gerador é utilizada, talvez passando qual a desejada via enum na requisição.
-
 ## Parametrização da geração de times
 
-O código de geração de times atual trabalha com pesos. Todos os pesos estão fixos no código. A ideia seria permitir parametrizar isso e passar em cada requisição, ou até mesmo em alguma configuração da disciplina ou do time, quais pesos utilizar. Levando em conta a organização de código que não está implementada e foi citada acima, outras implementações podem não trabalhar com pesos, mas a ideia seria permitir passar os parâmetros necessários de qualquer forma.
+O código de geração de times atual trabalha com pesos. Todos os pesos estão fixos no código. A ideia seria permitir parametrizar isso e passar em cada requisição, ou até mesmo em alguma configuração da disciplina ou do time, quais pesos utilizar. Outras implementações podem não trabalhar com pesos, mas a ideia seria permitir passar os parâmetros necessários de qualquer forma.
+
+## Função mais específica para geração de todos os times
+
+Atualmente, a função de gerar de todos os times pega os projetos da disciplina ordenados por ID e roda a função de geração individual para cada um deles, em ordem.
+
+Isso faz com que exista um viés, onde muitas vezes os alunos não estarão em nenhum dos projetos desejados (pois o algoritmo de geração em si é aleatório, com pesos, mas ainda aleatório...).
+
+Deve ser desenvolvido um algoritmo próprio para geração de todos os times ao mesmo tempo, onde priorize os projetos desejados dos estudantes antes de distribuir os mesmos para outros projetos.
+
+Uma ideia para este desenvolvimento seria fazer essa distribuição em passos. Pode ser utilizada a interface de gerador de times para criar um gerador que só considere os alunos que possuem desejo por algum projeto, fazendo a geração em si em 2 passos: um neste gerador (não implementado atualmente) e outro no gerador atual, completando os times conforme necessário.
+
+## Outros algoritmos de geração de time
+
+Implementar outros algoritmos para geração de time. Por exemplo, utilizar alguma IA para gerar o time.
+
+Isso pode ser feito utilizando a interface `TeamGenerator`, presente no arquivo `grpc/squad/team-generation/types.go`. Deve ser também registrado um novo elemento no enum `TeamGeneratorType`, presente no arquivo `proto/api/squad/enum.proto`, modificando a função `GetTeamGenerator`, presente no mesmo arquivo da interface, para retornar a instância do gerador novo.
 
 ## Chat interno do projeto
 
