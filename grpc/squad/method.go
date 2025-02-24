@@ -4,21 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
-	"slices"
 	"squad-maker/database"
 	pbAuth "squad-maker/generated/auth"
 	pbCommon "squad-maker/generated/common"
 	pbSquad "squad-maker/generated/squad"
+	teamGeneration "squad-maker/grpc/squad/team-generation"
 	"squad-maker/models"
 	grpcUtils "squad-maker/utils/grpc"
 	mailUtils "squad-maker/utils/mail"
-	otherUtils "squad-maker/utils/other"
 	"strconv"
 	"strings"
 
-	"github.com/mroth/weightedrand/v2"
 	mail "github.com/xhit/go-simple-mail/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,11 +23,6 @@ import (
 )
 
 // TODO quando implementar ownership do subject, tem que validar em tudo
-
-var (
-	ErrAllStudentsAlreadyInProject = errors.New("all students are already in a project")
-	ErrAllPositionsAlreadyFilled   = errors.New("all positions are already filled")
-)
 
 func (s *SquadServiceServer) GenerateAllTeams(ctx context.Context, req *pbSquad.GenerateAllTeamsRequest) (*pbSquad.GenerateAllTeamsResponse, error) {
 	subjectId := grpcUtils.GetCurrentSubjectIdFromMetadata(ctx)
@@ -67,11 +59,12 @@ func (s *SquadServiceServer) GenerateAllTeams(ctx context.Context, req *pbSquad.
 				ProjectInfo: &pbSquad.GenerateTeamRequest_ProjectId{
 					ProjectId: projectId,
 				},
+				GeneratorType: req.GeneratorType,
 			}, tx)
 			if err != nil {
-				if strings.Contains(err.Error(), ErrAllStudentsAlreadyInProject.Error()) {
+				if strings.Contains(err.Error(), teamGeneration.ErrAllStudentsAlreadyInProject.Error()) {
 					break
-				} else if strings.Contains(err.Error(), ErrAllPositionsAlreadyFilled.Error()) {
+				} else if strings.Contains(err.Error(), teamGeneration.ErrAllPositionsAlreadyFilled.Error()) {
 					continue
 				} else {
 					return err
@@ -220,19 +213,21 @@ func (s *SquadServiceServer) generateTeam(ctx context.Context, req *pbSquad.Gene
 			return status.Error(codes.Internal, r.Error.Error())
 		}
 
+		generator := teamGeneration.GetTeamGenerator(req.GeneratorType)
+
 		var mapNewStudents map[*models.StudentSubjectData]*models.Position
 		var currentDiff uint64
 		targetDiff := uint64(4) // TODO parametrizar (via request)
 		for i := 0; i < 100; i++ {
-			generatedTeam, err := generateProjectTeam(subject, project)
+			generatedTeam, err := generator.GenerateTeam(subject, project)
 			if err != nil {
-				if errors.Is(err, ErrAllStudentsAlreadyInProject) || errors.Is(err, ErrAllPositionsAlreadyFilled) {
+				if errors.Is(err, teamGeneration.ErrAllStudentsAlreadyInProject) || errors.Is(err, teamGeneration.ErrAllPositionsAlreadyFilled) {
 					return status.Error(codes.AlreadyExists, err.Error())
 				}
 				return status.Error(codes.Internal, err.Error())
 			}
 
-			diff := avaliarBalanceamento(generatedTeam, competenceLevels)
+			diff := generator.CalculateBalancingScore(generatedTeam, competenceLevels)
 			if math.Abs(float64(diff-targetDiff)) < math.Abs(float64(currentDiff-targetDiff)) || i == 0 {
 				currentDiff = diff
 				mapNewStudents = generatedTeam
@@ -546,160 +541,4 @@ func (s *SquadServiceServer) ReadAllStudentsInSubject(ctx context.Context, req *
 	}
 
 	return database.GetPaginatedResult[pbSquad.StudentInSubject, pbSquad.ReadAllStudentsInSubjectResponse](ctx, tx, req.Pagination, models.StudentSubjectData{}, studentInSubjectHandleUnknownOrderByFields)
-}
-
-// TODO mover isso pra uma interface
-// permitindo fazer implementações diferentes com as mesmas entradas e saídas
-// por exemplo, permitindo implementar com alguma IA/LLM
-func generateProjectTeam(subject *models.Subject, project *models.Project) (map[*models.StudentSubjectData]*models.Position, error) {
-	// considera que subject.Students está carregado e que o Student dentro de Students existe e não é nil
-	// mesma coisa para o project.Students e project.Positions
-
-	// TODO considerar também em quantos projetos o student já está (dentro do subject)
-	// mapeia os estudantes que não estão em nenhum projeto, considerando os projetos favoritos dos estudantes como peso para seleção
-
-	possibleStudents := map[*models.StudentSubjectData]weightedrand.Choice[*models.StudentSubjectData, int64]{}
-	for _, student := range subject.Students {
-		if student.Student == nil {
-			// ignora usuários deletados
-			continue
-		}
-
-		// verifica se já está no projeto
-		alreadyInProject := false
-		for _, p := range project.Students {
-			if p.StudentId == student.StudentId {
-				alreadyInProject = true
-				break
-			}
-		}
-		if alreadyInProject {
-			continue
-		}
-
-		var weight int64
-		weight = 5
-		if student.PreferredProjectId != nil {
-			// prioriza os estudantes que escolheram o projeto
-			if *student.PreferredProjectId == project.Id {
-				weight += 10 // TODO esse tipo de config deve ser parametrizada
-			} else {
-				weight -= 4
-			}
-		}
-		possibleStudents[student] = weightedrand.NewChoice(student, weight)
-	}
-
-	if len(possibleStudents) == 0 {
-		// todos os estudantes já estão em um projeto
-		return nil, ErrAllStudentsAlreadyInProject
-	}
-
-	// mapeia os cargos/positions que ainda precisam ser preenchidos
-	mapPossiblePositionsCount := map[*models.ProjectPosition]int64{}
-	for _, position := range project.Positions {
-		if position.Position == nil {
-			// ignora cargos deletados
-			continue
-		}
-
-		// verifica se já está preenchido
-		var countFilled int64
-		for _, ps := range project.Students {
-			if ps.Student == nil {
-				continue
-			}
-
-			if ps.PositionId == position.PositionId {
-				countFilled++
-			}
-
-			if countFilled >= position.Count {
-				break
-			}
-		}
-
-		if countFilled < position.Count {
-			mapPossiblePositionsCount[position] = position.Count - countFilled
-		}
-	}
-
-	if len(mapPossiblePositionsCount) == 0 {
-		// todos os cargos já estão preenchidos
-		return nil, ErrAllPositionsAlreadyFilled
-	}
-
-	mapSelectedStudentToPosition := map[*models.StudentSubjectData]*models.Position{}
-	// para cada cargo/position que ainda falta preencher (conforme configuração), seleciona um student para preencher o cargo
-	for position, count := range mapPossiblePositionsCount {
-		// copia a lista de students para modificar os pesos conforme cargo
-		positionWeightedStudents := maps.Clone(possibleStudents)
-		for i, student := range positionWeightedStudents {
-			if student.Item.PositionOption1Id == position.PositionId {
-				student.Weight += 5
-			} else if student.Item.PositionOption2Id != nil && *student.Item.PositionOption2Id == position.PositionId {
-				student.Weight += 3
-			}
-			positionWeightedStudents[i] = student
-		}
-
-		for i := int64(0); i < count; i++ {
-			if len(positionWeightedStudents) == 0 {
-				// não tem mais estudantes para preencher o cargo
-				break
-			}
-
-			chooser, err := weightedrand.NewChooser(slices.Collect(maps.Values(positionWeightedStudents))...)
-			if err != nil {
-				return nil, err
-			}
-			student := chooser.Pick()
-
-			mapSelectedStudentToPosition[student] = position.Position
-			delete(possibleStudents, student)
-			delete(positionWeightedStudents, student)
-		}
-	}
-
-	return mapSelectedStudentToPosition, nil
-}
-
-func avaliarBalanceamento(time map[*models.StudentSubjectData]*models.Position, senioridadesPossiveis []*models.CompetenceLevel) uint64 {
-	// reimplementação da função que estava no primeiro projeto, que era em python
-	// mas utilizando o peso das senioridades ao invés de senioridades fixas
-	// também só faz de 1 time por vez
-	// deixei até em português para indicar que é uma reimplementação, não algo pensado por nós
-
-	// outra coisa que vou mudar é a forma com que os times são comparados
-	// serão gerados de forma aleatória e comparados entre si
-	// além disso, o 'melhor time' não é o que tem melhor balanceamento (ex: todos sêniors), mas sim que têm balanceamento em um número arbitário
-	// atualmente fixo no código
-
-	// faz uma combinação 'n escolhe 2' das senioridades
-	// calcula a diferença absoluta entre a quantidade de senioridades
-	// (eu tinha uma ideia de usar 'pesos', mas nem vai precisar, já que usa o count...)
-	// este algoritmo considera como se cada senioridade fosse igualmente importante, fazendo com que senioridades não utilizadas contem muito no diffAbs
-
-	// talvez tenha alguma forma melhor de otimizar este código...
-
-	var diffAbs uint64
-	iter := &otherUtils.Iterator{N: len(senioridadesPossiveis), K: 2}
-	for iter.Next() {
-		senioridade1 := senioridadesPossiveis[iter.Comb[0]]
-		senioridade2 := senioridadesPossiveis[iter.Comb[1]]
-
-		var count1, count2 uint64
-
-		for ssd := range time {
-			if ssd.CompetenceLevelId == senioridade1.Id {
-				count1++
-			} else if ssd.CompetenceLevelId == senioridade2.Id {
-				count2++
-			}
-		}
-
-		diffAbs += uint64(math.Abs(float64(count1 - count2)))
-	}
-
-	return diffAbs
 }

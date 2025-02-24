@@ -118,7 +118,11 @@ func (s *SquadServiceServer) UpdateStudentSubjectData(ctx context.Context, req *
 		studentSubjectData.Tools = req.Tools
 		studentSubjectData.CompetenceLevelId = req.CompetenceLevelId
 		studentSubjectData.PositionOption1Id = req.PositionOption_1Id
-		studentSubjectData.PositionOption2Id = req.PositionOption_2Id
+		if req.PositionOption_2Id == nil || *req.PositionOption_2Id != req.PositionOption_1Id {
+			studentSubjectData.PositionOption2Id = req.PositionOption_2Id
+		} else {
+			studentSubjectData.PositionOption2Id = nil
+		}
 		studentSubjectData.PreferredProjectId = req.PreferredProjectId
 
 		r = tx.Save(studentSubjectData)

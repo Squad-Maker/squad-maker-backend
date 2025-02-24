@@ -17,6 +17,7 @@ import (
 	"squad-maker/grpc/squad"
 	"squad-maker/migrations"
 	"squad-maker/models"
+	"squad-maker/utils/env"
 	grpcUtils "squad-maker/utils/grpc"
 	jwtUtils "squad-maker/utils/jwt"
 	"strconv"
@@ -29,7 +30,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func getNetListener(port uint) net.Listener {
+func getNetListener(port uint32) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		panic(fmt.Sprintf("failed to listen: %v", err))
@@ -161,8 +162,17 @@ func main() {
 		panic(err)
 	}
 
-	listenWeb := getNetListener(9080)
-	listenGrpc := getNetListener(9090)
+	webPort, _ := env.GetUInt32("BACKEND_GRPC_WEB_PORT")
+	if webPort == 0 {
+		panic("BACKEND_GRPC_WEB_PORT must be set")
+	}
+	grpcPort, _ := env.GetUInt32("BACKEND_GRPC_PORT")
+	if grpcPort == 0 {
+		panic("BACKEND_GRPC_PORT must be set")
+	}
+
+	listenWeb := getNetListener(webPort)
+	listenGrpc := getNetListener(grpcPort)
 
 	wrappedServer := grpcweb.WrapServer(
 		s,

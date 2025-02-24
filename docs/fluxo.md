@@ -4,9 +4,10 @@ Esta documentação busca demonstrar o fluxo de dados do projeto, desde a autent
 
 ## Portas de comunicação
 
-A porta `9080` é utilizada para comunicação do `grpc-web`.
+As portas de comunicação são definidas no arquivo `.env`. Por padrão:
 
-A porta `9090` é utilizada para comunicação nativa do `grpc`.
+- A porta `9080` é utilizada para comunicação do `grpc-web`.
+- A porta `9090` é utilizada para comunicação nativa do `grpc`.
 
 ## Autenticação e Autorização
 
