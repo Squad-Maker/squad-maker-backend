@@ -483,7 +483,7 @@ func (s *SquadServiceServer) RequestTeamRevaluation(ctx context.Context, req *pb
 
 			body += `<br>
 				<p>Atenciosamente,</p>
-				<p>Sistema Squad Maker</p>`
+				<p>Sistema SquadMaker</p>`
 
 			emailsToSend = append(emailsToSend, mailUtils.PrepareNewMail(professor.Name, professor.Email, "Solicitação de mudança de projeto - "+projectStudent.Student.Name, body, mail.TextHTML))
 		}
