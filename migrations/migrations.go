@@ -42,6 +42,7 @@ func RunMigrations(ctx context.Context) error {
 		&models.Project{},
 		&models.ProjectPosition{},
 		&models.ProjectStudent{},
+		&models.ProjectCompetenceLevel{},
 	)
 	if err != nil {
 		return err
