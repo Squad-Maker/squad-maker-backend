@@ -66,6 +66,7 @@ func (s *SquadServiceServer) CreateProject(ctx context.Context, req *pbSquad.Cre
 		SubjectId:   subjectId,
 		Name:        req.Name,
 		Description: req.Description,
+		Tools:       req.Tools,
 	}
 	err = dbCon.Transaction(func(tx *gorm.DB) error {
 		// TODO verificar se o user é dono do subject do project
@@ -86,6 +87,23 @@ func (s *SquadServiceServer) CreateProject(ctx context.Context, req *pbSquad.Cre
 			}
 
 			r = tx.Create(ppo)
+			if r.Error != nil {
+				return status.Error(codes.Internal, r.Error.Error())
+			}
+		}
+
+		for _, competenceLevel := range req.CompetenceLevels {
+			if competenceLevel.Count <= 0 {
+				continue
+			}
+
+			pcl := &models.ProjectCompetenceLevel{
+				ProjectId:         project.Id,
+				CompetenceLevelId: competenceLevel.Id,
+				Count:             competenceLevel.Count,
+			}
+
+			r = tx.Create(pcl)
 			if r.Error != nil {
 				return status.Error(codes.Internal, r.Error.Error())
 			}
@@ -129,6 +147,7 @@ func (s *SquadServiceServer) UpdateProject(ctx context.Context, req *pbSquad.Upd
 
 		project.Name = req.Name
 		project.Description = req.Description
+		project.Tools = req.Tools
 
 		r = tx.Save(project)
 		if r.Error != nil {
@@ -170,6 +189,42 @@ func (s *SquadServiceServer) UpdateProject(ctx context.Context, req *pbSquad.Upd
 			r = r.Where("ppo_position_id NOT IN (?)", positionIds)
 		}
 		r = r.Delete(&models.ProjectPosition{})
+		if r.Error != nil {
+			return status.Error(codes.Internal, r.Error.Error())
+		}
+
+		var competenceLevelIds []int64
+		for _, competenceLevel := range req.CompetenceLevels {
+			if competenceLevel.Count <= 0 {
+				// delete
+				r = tx.Where(models.ProjectCompetenceLevel{
+					ProjectId:         project.Id,
+					CompetenceLevelId: competenceLevel.Id,
+				}, "ProjectId", "CompetenceLevelId").Delete(&models.ProjectCompetenceLevel{})
+				if r.Error != nil {
+					return status.Error(codes.Internal, r.Error.Error())
+				}
+				continue
+			}
+
+			pcl := &models.ProjectCompetenceLevel{
+				ProjectId:         project.Id,
+				CompetenceLevelId: competenceLevel.Id,
+				Count:             competenceLevel.Count,
+			}
+			r = tx.Save(pcl)
+			if r.Error != nil {
+				return status.Error(codes.Internal, r.Error.Error())
+			}
+			competenceLevelIds = append(competenceLevelIds, pcl.CompetenceLevelId)
+		}
+		r = tx.Where(models.ProjectCompetenceLevel{
+			ProjectId: project.Id,
+		}, "ProjectId")
+		if len(competenceLevelIds) > 0 {
+			r = r.Where("pcl_competence_level_id NOT IN (?)", competenceLevelIds)
+		}
+		r = r.Delete(&models.ProjectCompetenceLevel{})
 		if r.Error != nil {
 			return status.Error(codes.Internal, r.Error.Error())
 		}

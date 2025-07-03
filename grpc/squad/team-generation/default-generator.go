@@ -18,25 +18,15 @@ func (g *DefaultGenerator) GenerateTeam(subject *models.Subject, project *models
 
 	// os students dentro de subject.Students são os considerados para preenchimento no projeto
 
-	possibleStudents := map[*models.StudentSubjectData]weightedrand.Choice[*models.StudentSubjectData, int64]{}
-	for _, student := range subject.Students {
-		if student.Student == nil {
-			// ignora usuários deletados
-			continue
-		}
+	weightedPossibleStudents := map[*models.StudentSubjectData]weightedrand.Choice[*models.StudentSubjectData, int64]{}
 
-		// verifica se já está no projeto
-		alreadyInProject := false
-		for _, p := range project.Students {
-			if p.StudentId == student.StudentId {
-				alreadyInProject = true
-				break
-			}
-		}
-		if alreadyInProject {
-			continue
-		}
+	possibleStudents := getPossibleStudents(subject, project)
+	if len(possibleStudents) == 0 {
+		// todos os estudantes já estão em um projeto
+		return nil, ErrAllStudentsAlreadyInProject
+	}
 
+	for _, student := range possibleStudents {
 		var weight int64
 		weight = 5
 		if student.PreferredProjectId != nil {
@@ -47,43 +37,11 @@ func (g *DefaultGenerator) GenerateTeam(subject *models.Subject, project *models
 				weight -= 4
 			}
 		}
-		possibleStudents[student] = weightedrand.NewChoice(student, weight)
-	}
-
-	if len(possibleStudents) == 0 {
-		// todos os estudantes já estão em um projeto
-		return nil, ErrAllStudentsAlreadyInProject
+		weightedPossibleStudents[student] = weightedrand.NewChoice(student, weight)
 	}
 
 	// mapeia os cargos/positions que ainda precisam ser preenchidos
-	mapPossiblePositionsCount := map[*models.ProjectPosition]int64{}
-	for _, position := range project.Positions {
-		if position.Position == nil {
-			// ignora cargos deletados
-			continue
-		}
-
-		// verifica se já está preenchido
-		var countFilled int64
-		for _, ps := range project.Students {
-			if ps.Student == nil {
-				continue
-			}
-
-			if ps.PositionId == position.PositionId {
-				countFilled++
-			}
-
-			if countFilled >= position.Count {
-				break
-			}
-		}
-
-		if countFilled < position.Count {
-			mapPossiblePositionsCount[position] = position.Count - countFilled
-		}
-	}
-
+	mapPossiblePositionsCount := getPossiblePositionsCount(project)
 	if len(mapPossiblePositionsCount) == 0 {
 		// todos os cargos já estão preenchidos
 		return nil, ErrAllPositionsAlreadyFilled
@@ -93,7 +51,7 @@ func (g *DefaultGenerator) GenerateTeam(subject *models.Subject, project *models
 	// para cada cargo/position que ainda falta preencher (conforme configuração), seleciona um student para preencher o cargo
 	for position, count := range mapPossiblePositionsCount {
 		// copia a lista de students para modificar os pesos conforme cargo
-		positionWeightedStudents := maps.Clone(possibleStudents)
+		positionWeightedStudents := maps.Clone(weightedPossibleStudents)
 		for i, student := range positionWeightedStudents {
 			if student.Item.PositionOption1Id == position.PositionId {
 				student.Weight += 5
@@ -116,7 +74,7 @@ func (g *DefaultGenerator) GenerateTeam(subject *models.Subject, project *models
 			student := chooser.Pick()
 
 			mapSelectedStudentToPosition[student] = position.Position
-			delete(possibleStudents, student)
+			delete(weightedPossibleStudents, student)
 			delete(positionWeightedStudents, student)
 		}
 	}

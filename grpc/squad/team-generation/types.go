@@ -32,6 +32,8 @@ func GetTeamGenerator(generatorType pbSquad.TeamGeneratorType) TeamGenerator {
 	switch generatorType {
 	case pbSquad.TeamGeneratorType_tgtDefault:
 		return &DefaultGenerator{}
+	case pbSquad.TeamGeneratorType_tgtGeneticAlgorithm:
+		return &GeneticAlgorithmGenerator{}
 	default:
 		return &DefaultGenerator{}
 	}
