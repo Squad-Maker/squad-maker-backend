@@ -23,6 +23,7 @@ type GeneticAlgorithmGenerator struct {
 	Generations    int
 	MaxRetries     int
 
+	currentProjectId                 int64
 	studentsInTheTeam                int64
 	possibleStudents                 []*models.StudentSubjectData
 	mapPossiblePositionsCount        map[*models.ProjectPosition]int64
@@ -58,10 +59,12 @@ func (i *individual) PrintLog() {
 // o mapeamento para os cargos já é feito aqui, mesmo não seguindo o princípio da responsabilidade única
 // pois vai evitar processamento desnecessário
 func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
-	// quanto mais perto de 0, melhor é o time
-	// inclui tudo o que é necessário e vai diminuindo conforme encontrar
+	// quanto menor for o fitness, melhor é o time
+	// poderá ser menor que zero caso os alunos tiverem selecionado o projeto como preferido
+
 	i.mappedToPosition = make(map[*models.StudentSubjectData]*models.Position)
 
+	// inclui tudo o que é necessário e vai diminuindo conforme encontrar
 	fitness := float64(ga.studentsInTheTeam)
 	for _, c := range ga.mapPossibleCompetenceLevelsCount {
 		fitness += float64(c)
@@ -126,6 +129,15 @@ func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 		lenTools := len(tools)
 		tools = sliceUtils.Difference(ga.tools, studentTools)
 		fitness -= float64(lenTools - len(tools))
+
+		if student.PreferredProjectId != nil {
+			if *student.PreferredProjectId == ga.currentProjectId {
+				fitness -= 0.2
+			} else {
+				// se o estudante escolheu outro projeto como preferido, aumenta o fitness
+				fitness += 0.1
+			}
+		}
 	}
 
 	for _, student := range studentsToAssignRandomlyLater {
@@ -366,11 +378,11 @@ func (ga *GeneticAlgorithmGenerator) evolve(population []*individual) (bestIndiv
 	for _, ind := range population {
 		newIndividual := &individual{}
 		*newIndividual = *ind // copia o indivíduo atual
-		newIndividual.PrintLog()
+		// newIndividual.PrintLog()
 		newPopulation = append(newPopulation, newIndividual)
 	}
 
-	var lastFitness float64
+	lastFitness := math.MaxFloat64
 	var countSinceLastImprovement int
 	for range ga.Generations {
 		newPopulation = ga.evolveGeneration(newPopulation)
@@ -378,11 +390,11 @@ func (ga *GeneticAlgorithmGenerator) evolve(population []*individual) (bestIndiv
 		bestIndividual = newPopulation[0]
 		// bestIndividual.PrintLog()
 
-		if bestIndividual.fitness == 0 {
-			return
-		}
+		// if bestIndividual.fitness == 0 {
+		// 	return
+		// }
 
-		if lastFitness == 0 || bestIndividual.fitness < lastFitness {
+		if bestIndividual.fitness < lastFitness {
 			lastFitness = bestIndividual.fitness
 			countSinceLastImprovement = 0
 		} else {
@@ -413,6 +425,8 @@ func (ga *GeneticAlgorithmGenerator) GenerateTeam(subject *models.Subject, proje
 	// os students dentro de subject.Students são os considerados para preenchimento no projeto
 
 	defer ga.clear()
+
+	ga.currentProjectId = project.Id
 
 	ga.possibleStudents = getPossibleStudents(subject, project)
 	if len(ga.possibleStudents) == 0 {
