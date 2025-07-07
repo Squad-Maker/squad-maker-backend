@@ -87,11 +87,11 @@ func (ssd *StudentSubjectData) ConvertToProtobufMessage(tx *gorm.DB) (*pbSquad.S
 	message.Tools = ssd.Tools
 	message.PositionOption_1Id = ssd.PositionOption1Id
 	message.PositionOption_1Name = ssd.PositionOption1.Name
-	if message.PositionOption_2Id != nil {
+	if ssd.PositionOption2 != nil {
 		message.PositionOption_2Id = ssd.PositionOption2Id
 		message.PositionOption_2Name = &ssd.PositionOption2.Name
 	}
-	if message.PreferredProjectId != nil {
+	if ssd.PreferredProject != nil {
 		message.PreferredProjectId = ssd.PreferredProjectId
 		message.PreferredProjectName = &ssd.PreferredProject.Name
 	}
