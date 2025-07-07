@@ -142,6 +142,8 @@ func (s *SquadServiceServer) generateTeam(ctx context.Context, req *pbSquad.Gene
 			r := tx.
 				Preload("Positions").
 				Preload("Positions.Position").
+				Preload("CompetenceLevels").
+				Preload("CompetenceLevels.CompetenceLevel").
 				Preload("Students").
 				Preload("Students.Student").
 				First(project, c.ProjectId)

@@ -2,6 +2,7 @@ package teamGeneration
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"math"
 	"math/rand"
@@ -10,6 +11,7 @@ import (
 	"squad-maker/models"
 	otherUtils "squad-maker/utils/other"
 	sliceUtils "squad-maker/utils/slice"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -39,8 +41,21 @@ type individual struct {
 	mappedToPosition map[*models.StudentSubjectData]*models.Position // mapeia o estudante para o cargo que ele vai ocupar
 }
 
-// TODO trocar calculateFitness pra ser uma função do indivíduo, permitindo usar uma referência do indivíduo pra guardar alguns dados
-// a ideia é fazer o mapeamento para os cargos já aqui, mesmo não seguindo o princípio da responsabilidade única
+func (i *individual) String() string {
+	// retorna uma representação do cromossomo como uma string
+	// e o fitness do indivíduo
+	genes := make([]string, len(i.chromosome))
+	for j, g := range i.chromosome {
+		genes[j] = strconv.FormatInt(int64(g), 10)
+	}
+	return "Genes: [" + strings.Join(genes, ", ") + "], Fitness: " + strconv.FormatFloat(i.fitness, 'f', 4, 64)
+}
+
+func (i *individual) PrintLog() {
+	fmt.Println(i.String())
+}
+
+// o mapeamento para os cargos já é feito aqui, mesmo não seguindo o princípio da responsabilidade única
 // pois vai evitar processamento desnecessário
 func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 	// quanto mais perto de 0, melhor é o time
@@ -52,6 +67,8 @@ func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 		fitness += float64(c)
 	}
 	fitness += float64(len(ga.tools))
+
+	tools := slices.Clone(ga.tools)
 
 	mapPositionsToFill := maps.Clone(ga.mapPossiblePositionsCount)
 	mapCompetenceLevelsToFill := maps.Clone(ga.mapPossibleCompetenceLevelsCount)
@@ -88,6 +105,7 @@ func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 			i.mappedToPosition[student] = positionOption2.Position
 		} else {
 			studentsToAssignRandomlyLater = append(studentsToAssignRandomlyLater, student)
+			continue
 		}
 
 		// verifica os níveis de competência
@@ -99,19 +117,15 @@ func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 			}
 		}
 
-		// verifica as ferramentas
-		// pega as ferramentas do estudante, joga pra lowercase
-		// remove duplicados
-		// pega a diferença entre o slice de ferramentas necessárias com as ferramentas do estudante
-		// diminui do fitness a diferença entre o len das ferramentas necessárias e o len da diferença
 		studentTools := make([]string, 0, len(student.Tools))
 		for _, tool := range student.Tools {
 			studentTools = append(studentTools, strings.ToLower(tool))
 		}
 		studentTools = sliceUtils.RemoveDuplicates(studentTools)
 
-		diff := sliceUtils.Difference(ga.tools, studentTools)
-		fitness -= float64(len(ga.tools) - len(diff))
+		lenTools := len(tools)
+		tools = sliceUtils.Difference(ga.tools, studentTools)
+		fitness -= float64(lenTools - len(tools))
 	}
 
 	for _, student := range studentsToAssignRandomlyLater {
@@ -138,19 +152,15 @@ func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 			}
 		}
 
-		// verifica as ferramentas
-		// pega as ferramentas do estudante, joga pra lowercase
-		// remove duplicados
-		// pega a diferença entre o slice de ferramentas necessárias com as ferramentas do estudante
-		// diminui do fitness a diferença entre o len das ferramentas necessárias e o len da diferença
 		studentTools := make([]string, 0, len(student.Tools))
 		for _, tool := range student.Tools {
 			studentTools = append(studentTools, strings.ToLower(tool))
 		}
 		studentTools = sliceUtils.RemoveDuplicates(studentTools)
 
-		diff := sliceUtils.Difference(ga.tools, studentTools)
-		fitness -= float64(len(ga.tools) - len(diff))
+		lenTools := len(tools)
+		tools = sliceUtils.Difference(ga.tools, studentTools)
+		fitness -= float64(lenTools - len(tools))
 	}
 
 	fitness = math.Round(fitness*10000) / 10000 // arredonda para 4 casas decimais
@@ -162,7 +172,7 @@ func (i *individual) calculateFitness(ga *GeneticAlgorithmGenerator) float64 {
 func (ga *GeneticAlgorithmGenerator) newChromosome(size int64) []gene {
 	chromosome := make([]gene, 0, size)
 	randSource := &otherUtils.MapRand[gene]{}
-	randSource.InitializeInterval(0, gene(ga.studentsInTheTeam-1))
+	randSource.InitializeInterval(0, gene(len(ga.possibleStudents)-1))
 	for range size {
 		newGene, ok := randSource.GetRandomAndPop()
 		if !ok {
@@ -300,7 +310,7 @@ func (ga *GeneticAlgorithmGenerator) maybeMutate(i *individual) *individual {
 	mutationRate := 0.01 // 1% chance to mutate each gene
 
 	randSource := &otherUtils.MapRand[gene]{}
-	randSource.InitializeInterval(0, gene(ga.studentsInTheTeam-1))
+	randSource.InitializeInterval(0, gene(len(ga.possibleStudents)-1))
 
 	for index := range chromosome {
 		if rand.Float64() < mutationRate {
@@ -356,6 +366,7 @@ func (ga *GeneticAlgorithmGenerator) evolve(population []*individual) (bestIndiv
 	for _, ind := range population {
 		newIndividual := &individual{}
 		*newIndividual = *ind // copia o indivíduo atual
+		newIndividual.PrintLog()
 		newPopulation = append(newPopulation, newIndividual)
 	}
 
@@ -365,6 +376,8 @@ func (ga *GeneticAlgorithmGenerator) evolve(population []*individual) (bestIndiv
 		newPopulation = ga.evolveGeneration(newPopulation)
 
 		bestIndividual = newPopulation[0]
+		// bestIndividual.PrintLog()
+
 		if bestIndividual.fitness == 0 {
 			return
 		}
